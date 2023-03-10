@@ -80,12 +80,12 @@ def fetch_movie_data():
         obj = req.json()
 
         # initialize row for each file
-        detail_vals = [str(obj['id']), obj['title']]
-        genre_vals = [str(obj['id']), obj['title']]
+        detail_vals = []
+        genre_vals = [str(obj['id']), obj['title'].replace(",", "").rstrip()]
 
         # append to details row
         for col in movie_details_cols:
-            detail_vals.append(str(obj[col]))
+            detail_vals.append(str(obj[col]).replace(",", "").rstrip())
 
         movie_details.append(','.join(detail_vals))
 
@@ -103,7 +103,7 @@ def fetch_movie_data():
         for movie in movie_details:
             f.write(str(movie) + "\n")
 
-    with open(f'{ROOT}/app_data/genrelist-{COUNT}.csv', 'w+') as f:
+    with open(f'{ROOT}/app_data/genre_list-{COUNT}.csv', 'w+') as f:
         for movie in movie_genre_lists:
             f.write(str(movie) + "\n")
 
