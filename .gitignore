@@ -2,4 +2,5 @@
 .idea
 **/__pycache__
 .env
+app_data/*.csv
 app_data/data*
