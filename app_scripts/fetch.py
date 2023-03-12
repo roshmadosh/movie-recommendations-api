@@ -1,3 +1,5 @@
+import concurrent.futures
+
 import requests
 import json
 from pathlib import Path
@@ -41,7 +43,7 @@ def _fetch_genre_map():
 '''
 Obtains and returns valid movie ID's as a list.
 '''
-def _get_movie_ids(count):
+def _get_movie_ids(start):
     print('Getting movie IDs from', MOVIE_ID_FILE)
     ids = []
     with open(f'{ROOT}/app_data/{MOVIE_ID_FILE}', 'r') as id_file:
@@ -51,18 +53,18 @@ def _get_movie_ids(count):
                 obj = json.loads(line)
                 ids.append(obj['id'])
 
-    return ids[:count]
+    return ids[start:start+COUNT]
 
 '''
 Generates two files:
     - "details.csv": each row contains meta-data for a movie 
     - "genre_list.csv": each row contains a movie's categorized genre(s) in a dummified manner
 '''
-def fetch_movie_data():
+def fetch_movie_data(start):
     # Initialize data that will be added to details.csv
     movie_details_cols = ['id', 'title', 'overview', 'popularity', 'poster_path']
     movie_details_header = ','.join(movie_details_cols)
-    movie_details = [movie_details_header]
+    movie_details = [movie_details_header] if start == 0 else []
 
     # Initialize data that will be added to genre_list.csv
     genre_map = _fetch_genre_map()
@@ -70,9 +72,9 @@ def fetch_movie_data():
     for name in genre_map.values():
         genre_cols.append(name)
     genre_header = ','.join(genre_cols)
-    movie_genre_lists = [genre_header]
+    movie_genre_lists = [genre_header] if start == 0 else []
 
-    ids = _get_movie_ids(COUNT)
+    ids = _get_movie_ids(start)
     for movie_id in ids:
         print("Fetching movie with id", movie_id)
         url = f'{API_HOST}/movie/{movie_id}?api_key={API_KEY}'
@@ -99,15 +101,18 @@ def fetch_movie_data():
         movie_genre_lists.append(','.join(genre_vals))
 
     # write to files
-    with open(f'{ROOT}/app_data/details-{COUNT}.csv', 'w+') as f:
+    with open(f'{ROOT}/app_data/details-{COUNT * THREADS}.csv', 'a+') as f:
         for movie in movie_details:
             f.write(str(movie) + "\n")
 
-    with open(f'{ROOT}/app_data/genre_list-{COUNT}.csv', 'w+') as f:
+    with open(f'{ROOT}/app_data/genre_list-{COUNT * THREADS}.csv', 'a+') as f:
         for movie in movie_genre_lists:
             f.write(str(movie) + "\n")
 
 
 # entry point
 if __name__ == "__main__":
-    fetch_movie_data()
+    THREADS = 5
+    with concurrent.futures.ThreadPoolExecutor(max_workers=THREADS) as executor:
+        executor.map(fetch_movie_data, range(0, COUNT * (THREADS - 1) + 1, COUNT))
+
