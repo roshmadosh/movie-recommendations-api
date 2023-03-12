@@ -17,7 +17,7 @@ def _generate_parquet(objs):
     for obj in objs:
         df = pd.read_csv(obj["url"], lineterminator='\n')
         table = pa.Table.from_pandas(df)
-        pq.write_table(table, f'{ROOT}/app_data/{obj["fileName"]}')
+        pq.write_table(table, f'{ROOT}/app_data/{obj["fileName"]}', compression="gzip")
 
 
 if __name__ == "__main__":
