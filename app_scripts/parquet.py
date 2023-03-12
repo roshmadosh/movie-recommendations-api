@@ -5,6 +5,7 @@ import pyarrow.parquet as pq
 
 ROOT = Path(__file__).parent.parent
 
+
 ##
 # A function for creating parquet files from csv's.
 #
@@ -21,7 +22,7 @@ def _generate_parquet(objs):
 
 
 if __name__ == "__main__":
-    objs = [
+    csvs = [
         {
             "fileName": "details-5000.parquet",
             "url": f'{ROOT}/app_data/details-5000.csv'
@@ -31,5 +32,5 @@ if __name__ == "__main__":
             "url": f'{ROOT}/app_data/genre_list-5000.csv'
         }
    ]
-    _generate_parquet(objs)
+    _generate_parquet(csvs)
 
