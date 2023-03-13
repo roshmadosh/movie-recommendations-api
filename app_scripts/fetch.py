@@ -1,5 +1,4 @@
 import concurrent.futures
-
 import requests
 import json
 from pathlib import Path
@@ -9,8 +8,7 @@ from dotenv import load_dotenv
 ##
 # Script for fetching movie data from the TMDB API and saving it to a file.
 #
-# Author: Hiroshi Nobuoka
-# Date: 03/09/2023
+# ** MAKE SURE TO DELETE THE CSV's BEFORE RUNNING! **
 ##
 
 load_dotenv()

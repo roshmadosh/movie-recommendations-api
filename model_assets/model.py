@@ -1,22 +1,23 @@
 from sklearn.metrics.pairwise import linear_kernel
 import dill as pickle
 from pathlib import Path
-
+import pyarrow.parquet as pq
+import numpy as np
 
 ROOT = Path(__file__).parent.parent
 
 # Extract pickled dataframes. DFs were pickled in jupyter notebook, prevents having to create
 # them at runtime.
 dfs = {}
-for name in ["details", "genre", "tokens"]:
-    with open(f'{ROOT}/model_assets/{name}_df.pickle', 'rb+') as file:
-       dfs[name] = pickle.load(file)
+for name in ["details", "genre_list", "tokens"]:
+    dfs[name] = pq.read_table(f'{ROOT}/app_data/{name}-5000.parquet').to_pandas()
+dfs["details"].replace(np.nan, '', regex=True, inplace=True)
 
 # pair-wise similarity scores between movie tokens
 token_sim = linear_kernel(dfs["tokens"], dfs["tokens"])
 
 # same for genre similarity
-genres_only = dfs["genre"].iloc[:, 2:]
+genres_only = dfs["genre_list"].iloc[:, 2:]
 genre_sim = linear_kernel(genres_only, genres_only)
 
 # how much genre similarity affects score
