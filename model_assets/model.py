@@ -1,13 +1,11 @@
 from sklearn.metrics.pairwise import linear_kernel
-import dill as pickle
 from pathlib import Path
 import pyarrow.parquet as pq
 import numpy as np
 
 ROOT = Path(__file__).parent.parent
 
-# Extract pickled dataframes. DFs were pickled in jupyter notebook, prevents having to create
-# them at runtime.
+# Read saved dataframes. DFs were saved using setup.py script.
 dfs = {}
 for name in ["details", "genre_list", "tokens"]:
     dfs[name] = pq.read_table(f'{ROOT}/app_data/{name}-5000.parquet').to_pandas()
@@ -23,29 +21,50 @@ genre_sim = linear_kernel(genres_only, genres_only)
 # how much genre similarity affects score
 GENRE_SCALE = 0.25
 
+'''
+Get the n-most recommended movie titles based on a collection of movie titles.
 
-def get_top_n(title, n):
-    # find index of title
-    row = dfs["details"].loc[dfs["details"]['title'] == title]
+@input
+    - titles: a list of title names (e.g. ["Toy Story", "Fight Club"]
+    - n: the number of recommended movie titles to return as a list.
+'''
+def get_top_n(titles, n):
+    token_scores = []
+    genre_scores = []
+    for title in titles:
+        # find index of title
+        row = dfs['details'].loc[dfs['details']['title'] == title]
 
-    if row.empty:
-        return []
+        # movie title may not exist
+        if row.empty:
+            continue
 
-    index = row.index.tolist()[0]
+        index = row.index.tolist()[0]
+        token_score = token_sim[index]
+        genre_score = genre_sim[index]
 
-    # get sim scores for title
-    token_scores = list(enumerate(token_sim[index]))
-    genre_scores = list(enumerate(genre_sim[index]))
+        token_scores.append(token_score)
+        genre_scores.append(genre_score)
+
+    # column-wise average of the movies
+    avg_token_score = np.mean(token_scores, axis=0)
+    avg_genre_score = np.mean(genre_scores, axis=0)
+
+    # map each score to the ordered pair (index, score)
+    enum_token_score = list(enumerate(avg_token_score))
+    enum_genre_score = list(enumerate(avg_genre_score))
 
     total_scores = []
 
-    for i, token_score in token_scores:
-        total_scores.append((i, token_score + genre_scores[i][1] * GENRE_SCALE))
+    for i, token_score in enum_token_score:
+        total_scores.append((i, token_score + enum_genre_score[i][1] * GENRE_SCALE))
 
     # Sort the movies based on the similarity scores
-    top_scores = sorted(total_scores, key=lambda x: x[1], reverse=True)[1:n + 1]
+    top_scores = sorted(total_scores,
+        key=lambda x: x[1], reverse=True)[len(titles):len(titles) + n + 1]
 
     top_indices = [row[0] for row in top_scores]
 
-    top_titles = dfs["details"].iloc[top_indices, 1]
+    top_titles = dfs['details'].iloc[top_indices, 1]
+
     return top_titles.to_numpy().tolist()
