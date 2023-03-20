@@ -1,59 +1,43 @@
-import numpy as np
 import pandas as pd
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
+from app_scripts.fetch_ms import fetch_details
 from sklearn.feature_extraction.text import TfidfVectorizer
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 
-TOKENS_FILENAME = "tokens-5000.parquet"
+TOKENS_FILENAME = "tokens.parquet"
 ROOT = Path(__file__).parent.parent
-
-
-##
-# I already wrote logic for writing csv's, creating parquet files directly would require some
-# refactoring on fetch.py, but I'm too lazy.
-##
-def _csv_to_parquet(objs):
-    for obj in objs:
-        df = pd.read_csv(obj["url"], lineterminator='\n')
-        table = pa.Table.from_pandas(df)
-        pq.write_table(table, f'{ROOT}/app_data/{obj["fileName"]}', compression="gzip")
 
 
 ##
 # Tokenized data saved locally as parquet file.
 ##
-def _generate_tokens_parquet():
-    print("Generating tokens parquet...")
-    details_table = pq.read_table(f'{ROOT}/app_data/details-5000.parquet')
-    details_df = details_table.to_pandas()
-    details_df.replace(np.nan, '', regex=True, inplace=True)
+def _generate_all_tokens_parquet(count):
+    details_df = fetch_details(count)
+    print("Details dataframe generated. Commencing string tokenization...")
+    tfidf_vectorizer = TfidfVectorizer(analyzer='word', stop_words='english', min_df=2)
 
-    tfidf_vectorizer = TfidfVectorizer(analyzer='word', stop_words='english')
+    titles_matrix = tfidf_vectorizer.fit_transform(details_df["title"].tolist())
+    titles_df = pd.DataFrame(titles_matrix.toarray(), columns=tfidf_vectorizer.get_feature_names_out())
+    print("Titles dataframe successfully created. Dataframe shape:")
+    print(titles_df.shape)
 
-    # get the column values to vectorize
-    titles = details_df['title'].tolist()
-    overviews = details_df['overview'].tolist()
+    overview_matrix = tfidf_vectorizer.fit_transform(details_df["overview"].tolist())
+    overview_df = pd.DataFrame(overview_matrix.toarray(), columns=tfidf_vectorizer.get_feature_names_out())
+    print("Overviews dataframe successfully created. Dataframe shape:")
+    print(overview_df.shape)
 
-    # do the tfidf stuff
-    titles_matrix = tfidf_vectorizer.fit_transform(titles)
-    titles_tokens = tfidf_vectorizer.get_feature_names_out()
+    # Memory intensive. For > 20k movies, may have to write dataframes to disk first.
+    print("Attempting to concatenate dataframes...")
+    overview_df.join(titles_df, lsuffix="_ov", rsuffix="_ti")
+    print("Concantenation successfull!")
+    print(overview_df.shape)
 
-    overviews_matrix = tfidf_vectorizer.fit_transform(overviews)
-    overviews_tokens = tfidf_vectorizer.get_feature_names_out()
-
-    # create tokenized dataframes
-    titles_df = pd.DataFrame(titles_matrix.toarray(), columns = titles_tokens).add_prefix("ti_")
-    overviews_df = pd.DataFrame(overviews_matrix.toarray(), columns = overviews_tokens).add_prefix("ov_")
-
-    # consolidate
-    tokens_df = pd.concat([titles_df, overviews_df], axis=1)
-
-    # save as parquet file
-    table = pa.Table.from_pandas(tokens_df)
+    print("Generating parquet table...")
+    table = pa.Table.from_pandas(overview_df)
     loc = f'{ROOT}/app_data/{TOKENS_FILENAME}'
     print("Saving parquet to", loc)
     pq.write_table(table, loc, compression="gzip")
@@ -78,15 +62,11 @@ def save_to_azure(container_name, file_name, file_location):
 
 
 if __name__ == "__main__":
-    objs = [
-        {"fileName": "details-5000.parquet", "url": f'{ROOT}/app_data/details-5000.csv'},
-        {"fileName": "genre_list-5000.parquet", "url": f'{ROOT}/app_data/genre_list-5000.csv'},
-    ]
-    _csv_to_parquet(objs)
-    _generate_tokens_parquet()
+    COUNT = 20000
+    _generate_all_tokens_parquet(COUNT)
+    #
+    # # save parquets to Azure
+    # for obj in objs:
+    #     save_to_azure("datasets", obj["fileName"], obj["url"])
 
-    # save parquets to Azure
-    for obj in objs:
-        save_to_azure("datasets", obj["fileName"], obj["url"])
-
-    save_to_azure("datasets", TOKENS_FILENAME, f'{ROOT}/app_data/{TOKENS_FILENAME}')
+    # save_to_azure("datasets", TOKENS_FILENAME, f'{ROOT}/app_data/{TOKENS_FILENAME}')
