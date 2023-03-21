@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
-from app_scripts.fetch_ms import fetch_details
+from app_scripts.fetch_ms import get_details_as_dataframe
 from sklearn.feature_extraction.text import TfidfVectorizer
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
@@ -15,8 +15,8 @@ ROOT = Path(__file__).parent.parent
 ##
 # Tokenized data saved locally as parquet file.
 ##
-def _generate_all_tokens_parquet(count):
-    details_df = fetch_details(count)
+def _generate_tokens_parquet(count):
+    details_df = get_details_as_dataframe(count)
     print("Details dataframe generated. Commencing string tokenization...")
     tfidf_vectorizer = TfidfVectorizer(analyzer='word', stop_words='english', min_df=2)
 
@@ -33,7 +33,7 @@ def _generate_all_tokens_parquet(count):
     # Memory intensive. For > 20k movies, may have to write dataframes to disk first.
     print("Attempting to concatenate dataframes...")
     overview_df.join(titles_df, lsuffix="_ov", rsuffix="_ti")
-    print("Concantenation successfull!")
+    print("Concatenation successful!")
     print(overview_df.shape)
 
     print("Generating parquet table...")
@@ -62,9 +62,9 @@ def save_to_azure(container_name, file_name, file_location):
 
 
 if __name__ == "__main__":
-    COUNT = 20000
-    _generate_all_tokens_parquet(COUNT)
-    #
+    COUNT = 10000
+    _generate_tokens_parquet(COUNT)
+
     # # save parquets to Azure
     # for obj in objs:
     #     save_to_azure("datasets", obj["fileName"], obj["url"])

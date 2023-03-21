@@ -1,22 +1,29 @@
+from fastapi import HTTPException
 from sklearn.metrics.pairwise import linear_kernel
 from pathlib import Path
 import pyarrow.parquet as pq
 import numpy as np
 
+from app_scripts.fetch_ms import get_details_as_dataframe, get_movie_genres_as_dataframe
+
 ROOT = Path(__file__).parent.parent
 
 # Read saved dataframes. DFs were saved using setup.py script.
 dfs = {}
-for name in ["details", "genre_list", "tokens"]:
-    dfs[name] = pq.read_table(f'{ROOT}/app_data/{name}-5000.parquet').to_pandas()
+dfs["details"] = get_details_as_dataframe()
 dfs["details"].replace(np.nan, '', regex=True, inplace=True)
+dfs["genre_list"] = get_movie_genres_as_dataframe()
 
-# pair-wise similarity scores between movie tokens
-token_sim = linear_kernel(dfs["tokens"], dfs["tokens"])
+print("Generating tokens dataframe...")
+dfs["tokens"] = pq.read_table(f'{ROOT}/app_data/tokens.parquet').to_pandas()
 
+print("Calculating pair-wise similarity scores...")
 # same for genre similarity
 genres_only = dfs["genre_list"].iloc[:, 2:]
 genre_sim = linear_kernel(genres_only, genres_only)
+
+# pair-wise similarity scores between movie tokens
+token_sim = linear_kernel(dfs["tokens"], dfs["tokens"])
 
 # how much genre similarity affects score
 GENRE_SCALE = 0.25
@@ -37,7 +44,7 @@ def get_top_n(titles, n):
 
         # movie title may not exist
         if row.empty:
-            continue
+            raise HTTPException(status_code=404, detail=f'Movie title "{title}" not found.')
 
         index = row.index.tolist()[0]
         token_score = token_sim[index]
