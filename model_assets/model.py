@@ -5,6 +5,7 @@ import pyarrow.parquet as pq
 import numpy as np
 
 from app_scripts.fetch_ms import get_details_as_dataframe, get_movie_genres_as_dataframe
+from app_scripts.mappers import movie_list_to_dict
 
 ROOT = Path(__file__).parent.parent
 
@@ -68,10 +69,10 @@ def get_top_n(titles, n):
 
     # Sort the movies based on the similarity scores
     top_scores = sorted(total_scores,
-        key=lambda x: x[1], reverse=True)[len(titles):len(titles) + n + 1]
+        key=lambda x: x[1], reverse=True)[len(titles):len(titles) + n]
 
     top_indices = [row[0] for row in top_scores]
 
-    top_titles = dfs['details'].iloc[top_indices, 1]
+    top_titles = dfs['details'].iloc[top_indices, :]
 
-    return top_titles.to_numpy().tolist()
+    return movie_list_to_dict(top_titles.to_numpy().tolist())

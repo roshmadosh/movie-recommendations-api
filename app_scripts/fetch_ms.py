@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 
-def get_details_as_dataframe(count = 20000):
+def get_details_as_dataframe(count = 10000):
     print("Fetching movie details...")
     PATH = 'http://localhost:8083/api/v1/ml/assets/details'
     details_resp = requests.get(f'{PATH}?count={count}')

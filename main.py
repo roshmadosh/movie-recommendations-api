@@ -15,7 +15,7 @@ async def root():
 @app.post('/recommendations')
 async def predict(req: RequestObject):
     top_n = get_top_n(req.titles, req.count)
-    return {"success": True, "results": top_n}
+    return top_n
 
 
 
