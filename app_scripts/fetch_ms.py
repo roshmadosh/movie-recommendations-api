@@ -5,8 +5,9 @@ import numpy as np
 
 def get_details_as_dataframe(count = 10000):
     print("Fetching movie details...")
-    PATH = 'http://localhost:8083/api/v1/ml/assets/details'
-    details_resp = requests.get(f'{PATH}?count={count}')
+    PATH = 'http://localhost:8082/api/v1/assets/details'
+    details_resp = requests.get(PATH)
+    print(details_resp)
     details_json = json.loads(details_resp.content)
 
     details_df = pd.DataFrame(details_json)
@@ -44,7 +45,7 @@ def get_movie_genres_as_dataframe():
 
 def _fetch_genres():
     print("Fetching genres...")
-    PATH = 'http://localhost:8083/api/v1/ml/assets/genres'
+    PATH = 'http://localhost:8082/api/v1/assets/genres'
     resp = requests.get(PATH)
     genres = resp.json()
     return genres
